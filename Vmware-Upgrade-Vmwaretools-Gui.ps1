@@ -79,9 +79,15 @@ function FormImportCSV-GetVMs(){
         if($Form_ImportCSV_TextBox_UserName.text -ne "" -and $Form_ImportCSV_TextBox_Password.text -ne ""){
             
             #Import selected CSV File
-            $CSVContent = import-csv $Form_ImportCSV_TextBox_Browse.text
             $Form_ImportCSV_Result.text = "Importing CSV file: $($Form_ImportCSV_TextBox_Browse.text)"
-            $Form_ImportCSV_Result.text += "`r`nImported $($csvcontent.count) items"
+            try{
+                $CSVContent = import-csv $Form_ImportCSV_TextBox_Browse.text -erroraction stop
+                $Form_ImportCSV_Result.text += "`r`nImported $($csvcontent.count) items"
+            }
+            catch{
+                $Form_ImportCSV_Result.text += "`r`nFailed to import CSV."
+            }
+            
             
             #Create Filter Search for getting VMs from Vcenter
             $importvmsearch = $csvcontent.servername
@@ -106,8 +112,89 @@ function FormImportCSV-GetVMs(){
             }
 
             if($global:defaultviserver){
+                $Form_ImportCSV_Result.text += "`r`n"
+                $Form_ImportCSV_Result.text += "`r`nGetting VMs from imported list..."
+                #Get vms filtered on imported CSV. This is technically more efficient than pulling each vm individually... maybe...idk. 
                 $vms = get-vm | where {$_.name -in $importvmsearch}
 
+                $Form_ImportCSV_Result.text += "`r`nFound $($vms.count) of $($importvmsearch.count)"
+
+
+                #Build Columns for list view
+                $Form_ImportCSV_ResultListview.columns.add("VMName") | out-null
+                $Form_ImportCSV_ResultListview.columns.add("VCenter") | out-null
+                $Form_ImportCSV_ResultListview.columns.add("PowerState") | out-null
+                $Form_ImportCSV_ResultListview.columns.add("IPAddress") | out-null
+                $Form_ImportCSV_ResultListview.columns.add("Operating_System") | out-null
+                $Form_ImportCSV_ResultListview.columns.add("ToolsRunningStatus") | out-null
+                $Form_ImportCSV_ResultListview.columns.add("VmwareTools_Version") | out-null
+                $Form_ImportCSV_ResultListview.columns.add("VmwareTools_InstallType") | out-null
+                $Form_ImportCSV_ResultListview.columns.add("VmwareTools_Status") | out-null
+                $Form_ImportCSV_ResultListview.columns.add("VmwareTools_VersionStatus") | out-null
+                $Form_ImportCSV_ResultListview.columns.add("VmwareTools_VersionStatus2") | out-null
+
+                #loop through each VM
+                foreach ($vm in $vms){
+                    #Empty Values
+                    $Vcenter = @()
+                    $VMname = @()
+                    $PowerState = @()
+                    $IPAddress = @()
+                    $Operating_System = @()
+                    $ToolsRunningStatus = @()
+                    $VmwareTools_Version = @()
+                    $VmwareTools_InstallType = @()
+                    $VmwareTools_Status = @()
+                    $VmwareTools_VersionStatus = @()
+                    $VmwareTools_VersionStatus2 = @()
+                    
+                    #Set Variables
+                    $trash1,$vcenter,$trash2 = ($vm.guest.vmuid -split "@") -split ":"
+                    $VMname = ($VM.Name).tostring()
+                    $PowerState = ($vm.powerstate).tostring()
+                    $IPAddress = ($vm.guest.extensiondata.IpAddress).tostring()
+                    $Operating_System = ($vm.guest.extensiondata.GuestFullName).tostring()
+                    $ToolsRunningStatus = ($vm.guest.extensiondata.ToolsRunningStatus).tostring()
+                    $VmwareTools_Version = ($vm.guest.extensiondata.ToolsVersion).tostring()
+                    $VmwareTools_InstallType = ($vm.guest.extensiondata.ToolsInstallType).tostring()
+                    $VmwareTools_Status = ($vm.guest.extensiondata.ToolsStatus).tostring()
+                    $VmwareTools_VersionStatus = ($vm.guest.extensiondata.ToolsVersionStatus).tostring()
+                    $VmwareTools_VersionStatus2 = ($vm.guest.extensiondata.ToolsVersionStatus2).tostring()
+
+                    #Handle Null Values
+                    if(!$VMname){$VMname = "Null"}
+                    if(!$PowerState){$PowerState = "Null"}
+                    if(!$IPAddress){$IPAddress = "Null"}
+                    if(!$Operating_System){$Operating_System = "Null"}
+                    if(!$ToolsRunningStatus){$ToolsRunningStatus = "Null"}
+                    if(!$VmwareTools_Version){$VmwareTools_Version = "Null"}
+                    if(!$VmwareTools_InstallType){$VmwareTools_InstallType = "Null"}
+                    if(!$VmwareTools_Status){$VmwareTools_Status = "Null"}
+                    if(!$VmwareTools_VersionStatus){$VmwareTools_VersionStatus = "Null"}
+                    if(!$VmwareTools_VersionStatus2){$VmwareTools_VersionStatus2 = "Null"}
+
+                    #Add Listviewitems
+                    $Form_ImportCSV_ResultListview_Listviewitem = New-object System.Windows.Forms.ListViewItem($VMName)
+                    $Form_ImportCSV_ResultListview_Listviewitem.subitems.add($vcenter)
+                    $Form_ImportCSV_ResultListview_Listviewitem.subitems.add($PowerState)
+                    $Form_ImportCSV_ResultListview_Listviewitem.subitems.add($IPAddress)
+                    $Form_ImportCSV_ResultListview_Listviewitem.subitems.add($Operating_System)
+                    $Form_ImportCSV_ResultListview_Listviewitem.subitems.add($ToolsRunningStatus)
+                    $Form_ImportCSV_ResultListview_Listviewitem.subitems.add($VmwareTools_Version)
+                    $Form_ImportCSV_ResultListview_Listviewitem.subitems.add($VmwareTools_InstallType)
+                    $Form_ImportCSV_ResultListview_Listviewitem.subitems.add($VmwareTools_Status)
+                    $Form_ImportCSV_ResultListview_Listviewitem.subitems.add($VmwareTools_VersionStatus)
+                    $Form_ImportCSV_ResultListview_Listviewitem.subitems.add($VmwareTools_VersionStatus2)
+
+                    $Form_ImportCSV_ResultListview.items.add($Form_ImportCSV_ResultListview_Listviewitem) | out-null
+                    
+
+                }
+
+                $Form_ImportCSV_ResultListview.AutoResizeColumns("HeaderSize")
+
+                $Form_CSVOption.controls.remove($Form_ImportCSV_Result) | out-null
+                $Form_CSVOption.controls.AddRange($Form_ImportCSV_ResultListview,$Form_ImportCSV_SnapshotButton) | out-null
 
             }
             #>
@@ -120,38 +207,9 @@ function FormImportCSV-GetVMs(){
 }
 
 function FormImportCSV-Snapshot(){
-    $Form_CSVOption.controls.remove($Form_ImportCSV_Label_UsernameandPasswordErrorn) | out-null
-    # Check to see if the file type is a csv
-    if($Form_ImportCSV_TextBox_Browse.text -ne ""){
-
-        if($Form_ImportCSV_TextBox_UserName.text -ne "" -and $Form_ImportCSV_TextBox_Password.text -ne ""){
-            <#
-            $CSVContent = import-csv $Form_ImportCSV_TextBox_Browse.text
-
-            $vmsearch = $csvcontent.servername
-    
-            $VCenters = $csvcontent | select -Unique -ExpandProperty Vcenter 
-    
-            $username = $Form_ImportCSV_TextBox_UserName.text
-
-            $password = $Form_ImportCSV_TextBox_Password.text
-    
-            ## -- connect to vcenter -- ##
-            foreach($Vcenter in $VCenters){
-                connect-viserver -server $vcenter -username $username -password $password -force
-            }
-            #>
-        }
-        if($Form_ImportCSV_TextBox_UserName.text -eq "" -or $Form_ImportCSV_TextBox_Password.text -eq ""){
-            $Form_CSVOption.controls.Add($Form_ImportCSV_Label_UsernameandPasswordError)
-        }         
 
     }
-
-    # Check to see if the column headers on the CSV is the correct format
-    
-}
-
+     
 function FormImportCSV-ExportResults(){
     $Today = ((Get-Date).ToString('MMddyyyy'))
     $exportpath = $PSScriptRoot + "\$Today" + "_VmwareToolsUpgrade.log"
@@ -277,8 +335,8 @@ $Form_ImportCSV_ResultListview.view                     = "Details"
 $Form_ImportCSV_ResultListview.FullRowSelect            = $True
 $Form_ImportCSV_ResultListview.MultiSelect              = $True
 $Form_ImportCSV_ResultListview.AllowColumnReorder       = $True
-$Form_ImportCSV_ResultListview.GridLines                = $True
-
+$Form_ImportCSV_ResultListview.GridLines                = $True 
+$Form_ImportCSV_ResultListview.Sorting                  = "ascending"
 
 #Text Box
 $Form_ImportCSV_TextBox_Browse              = New-Object system.Windows.Forms.TextBox
