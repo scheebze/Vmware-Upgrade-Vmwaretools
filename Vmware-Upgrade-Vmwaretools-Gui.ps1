@@ -22,11 +22,10 @@ function FormCSVOption-ImportCSV(){
         $Form_ImportCSV_closeButton,
         $Form_ImportCSV_Label_Instructions,
         $Form_ImportCSV_Result,
-        #$Form_ImportCSV_SnapshotButton,
         $Form_ImportCSV_DownloadSampleButton,
         $Form_ImportCSV_BrowseButton,
         $Form_ImportCSV_TextBox_Browse,
-        $Form_ImportCSV_ExportResultsButton,
+        #$Form_ImportCSV_ExportResultsButton,
         $Form_ImportCSV_Label_Username,
         $Form_ImportCSV_TextBox_UserName,
         $Form_ImportCSV_Label_Password,
@@ -73,7 +72,16 @@ function FormImportCSV-Browse(){
 
 
 function FormImportCSV-GetVMs(){
+    #Remove items if present
     $Form_CSVOption.controls.remove($Form_ImportCSV_Label_UsernameandPasswordError) | out-null
+    $Form_CSVOption.controls.remove($Form_ImportCSV_ResultListview) | out-null
+    $Form_ImportCSV_ResultListview.clear()
+    
+    #Add Result box
+    $Form_ImportCSV_Result.text = ""
+    $Form_CSVOption.controls.add($Form_ImportCSV_Result) | out-null
+
+    #If there is something in the browse text box do stuff
     if($Form_ImportCSV_TextBox_Browse.text -ne ""){
         #identify if username and password is filled out
         if($Form_ImportCSV_TextBox_UserName.text -ne "" -and $Form_ImportCSV_TextBox_Password.text -ne ""){
@@ -95,9 +103,11 @@ function FormImportCSV-GetVMs(){
             #Set VCenters Array
             $VCenters = $csvcontent | select -Unique -ExpandProperty Vcenter 
             $Form_ImportCSV_Result.text += "`r`nIdentified $($Vcenters.count) VCenters"
-                
+            
+            #Username Pulled from text box
             $username = $Form_ImportCSV_TextBox_UserName.text
 
+            #Password Pulled from text box
             $password = $Form_ImportCSV_TextBox_Password.text
     
             ## -- connect to vcenter -- ##
@@ -111,6 +121,7 @@ function FormImportCSV-GetVMs(){
                 }
             }
 
+            #If clause checks to see if a vcenter was able to be connected to using the global default vi server cmdlet
             if($global:defaultviserver){
                 $Form_ImportCSV_Result.text += "`r`n"
                 $Form_ImportCSV_Result.text += "`r`nGetting VMs from imported list..."
@@ -194,11 +205,18 @@ function FormImportCSV-GetVMs(){
                 $Form_ImportCSV_ResultListview.AutoResizeColumns("HeaderSize")
 
                 $Form_CSVOption.controls.remove($Form_ImportCSV_Result) | out-null
-                $Form_CSVOption.controls.AddRange($Form_ImportCSV_ResultListview,$Form_ImportCSV_SnapshotButton) | out-null
+                $Form_CSVOption.controls.AddRange(@($Form_ImportCSV_ResultListview,$Form_ImportCSV_SnapshotButton)) | out-null
 
+            }
+
+            #If clause checks to see if no vcenter was connected to. A bit of error handling...Kinda.
+            if(!$global:defaultviserver){
+                $Form_ImportCSV_Result.text += "`r`n "
+                $Form_ImportCSV_Result.text += "`r`nDid not connect to any vcenter. Please try again. Double check the username and password used is correct. Make sure you are able to connect to the vcenter from your network."
             }
             #>
         }
+        #if there is not username or password display error
         if($Form_ImportCSV_TextBox_UserName.text -eq "" -or $Form_ImportCSV_TextBox_Password.text -eq ""){
             $Form_CSVOption.controls.Add($Form_ImportCSV_Label_UsernameandPasswordError)
         }  
@@ -209,7 +227,7 @@ function FormImportCSV-GetVMs(){
 function FormImportCSV-Snapshot(){
 
     }
-     
+
 function FormImportCSV-ExportResults(){
     $Today = ((Get-Date).ToString('MMddyyyy'))
     $exportpath = $PSScriptRoot + "\$Today" + "_VmwareToolsUpgrade.log"
@@ -397,7 +415,7 @@ $Form_ImportCSV_SnapshotButton                 = New-Object system.Windows.Forms
 $Form_ImportCSV_SnapshotButton.text            = "Upgrade VMware Tools"
 $Form_ImportCSV_SnapshotButton.width           = 120
 $Form_ImportCSV_SnapshotButton.height          = 40
-$Form_ImportCSV_SnapshotButton.location        = New-Object System.Drawing.Point(630,90)
+$Form_ImportCSV_SnapshotButton.location        = New-Object System.Drawing.Point(630,300)
 $Form_ImportCSV_SnapshotButton.Font            = New-Object System.Drawing.Font('Microsoft Sans Serif',10)
 $Form_ImportCSV_SnapshotButton.Add_Click({FormImportCSV-Snapshot})
 
