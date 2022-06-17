@@ -1,4 +1,5 @@
 ## --- Import VMWare Module --- ##
+#Install-Module VMware.PowerCLI -confirm:$False 
 #Import-Module VMware.PowerCLI
 
 Stop-Transcript | out-null
@@ -25,7 +26,6 @@ function FormCSVOption-ImportCSV(){
         $Form_ImportCSV_DownloadSampleButton,
         $Form_ImportCSV_BrowseButton,
         $Form_ImportCSV_TextBox_Browse,
-        #$Form_ImportCSV_ExportResultsButton,
         $Form_ImportCSV_Label_Username,
         $Form_ImportCSV_TextBox_UserName,
         $Form_ImportCSV_Label_Password,
@@ -74,8 +74,8 @@ function FormImportCSV-Browse(){
 function FormImportCSV-GetVMs(){
     #Remove items if present
     $Form_CSVOption.controls.remove($Form_ImportCSV_Label_UsernameandPasswordError) | out-null
-    $Form_CSVOption.controls.remove($Form_ImportCSV_ResultListview) | out-null
-    $Form_ImportCSV_ResultListview.clear()
+    $Form_CSVOption.controls.remove($Form_ImportCSV_GetVMResultListview) | out-null
+    $Form_ImportCSV_GetVMResultListview.clear()
     
     #Add Result box
     $Form_ImportCSV_Result.text = ""
@@ -132,17 +132,18 @@ function FormImportCSV-GetVMs(){
 
 
                 #Build Columns for list view
-                $Form_ImportCSV_ResultListview.columns.add("VMName") | out-null
-                $Form_ImportCSV_ResultListview.columns.add("VCenter") | out-null
-                $Form_ImportCSV_ResultListview.columns.add("PowerState") | out-null
-                $Form_ImportCSV_ResultListview.columns.add("IPAddress") | out-null
-                $Form_ImportCSV_ResultListview.columns.add("Operating_System") | out-null
-                $Form_ImportCSV_ResultListview.columns.add("ToolsRunningStatus") | out-null
-                $Form_ImportCSV_ResultListview.columns.add("VmwareTools_Version") | out-null
-                $Form_ImportCSV_ResultListview.columns.add("VmwareTools_InstallType") | out-null
-                $Form_ImportCSV_ResultListview.columns.add("VmwareTools_Status") | out-null
-                $Form_ImportCSV_ResultListview.columns.add("VmwareTools_VersionStatus") | out-null
-                $Form_ImportCSV_ResultListview.columns.add("VmwareTools_VersionStatus2") | out-null
+                $Form_ImportCSV_GetVMResultListview.columns.add("VMName") | out-null
+                $Form_ImportCSV_GetVMResultListview.columns.add("VCenter") | out-null
+                $Form_ImportCSV_GetVMResultListview.columns.add("PowerState") | out-null
+                $Form_ImportCSV_GetVMResultListview.columns.add("IPAddress") | out-null
+                $Form_ImportCSV_GetVMResultListview.columns.add("Operating_System") | out-null
+                $Form_ImportCSV_GetVMResultListview.columns.add("ToolsRunningStatus") | out-null
+                $Form_ImportCSV_GetVMResultListview.columns.add("VmwareTools_Version") | out-null
+                $Form_ImportCSV_GetVMResultListview.columns.add("VmwareTools_InstallType") | out-null
+                $Form_ImportCSV_GetVMResultListview.columns.add("VmwareTools_Status") | out-null
+                $Form_ImportCSV_GetVMResultListview.columns.add("VmwareTools_VersionStatus") | out-null
+                $Form_ImportCSV_GetVMResultListview.columns.add("VmwareTools_VersionStatus2") | out-null
+                $Form_ImportCSV_GetVMResultListview.columns.add("VmwareTools_GuestFamily") | out-null
 
                 #loop through each VM
                 foreach ($vm in $vms){
@@ -158,6 +159,7 @@ function FormImportCSV-GetVMs(){
                     $VmwareTools_Status = @()
                     $VmwareTools_VersionStatus = @()
                     $VmwareTools_VersionStatus2 = @()
+                    $VmwareTools_GuestFamily = @()
                     
                     #Set Variables
                     $trash1,$vcenter,$trash2 = ($vm.guest.vmuid -split "@") -split ":"
@@ -171,6 +173,7 @@ function FormImportCSV-GetVMs(){
                     $VmwareTools_Status = ($vm.guest.extensiondata.ToolsStatus).tostring()
                     $VmwareTools_VersionStatus = ($vm.guest.extensiondata.ToolsVersionStatus).tostring()
                     $VmwareTools_VersionStatus2 = ($vm.guest.extensiondata.ToolsVersionStatus2).tostring()
+                    $VmwareTools_GuestFamily = ($vm.guest.extensiondata.GuestFamily).tostring()
 
                     #Handle Null Values
                     if(!$VMname){$VMname = "Null"}
@@ -183,29 +186,31 @@ function FormImportCSV-GetVMs(){
                     if(!$VmwareTools_Status){$VmwareTools_Status = "Null"}
                     if(!$VmwareTools_VersionStatus){$VmwareTools_VersionStatus = "Null"}
                     if(!$VmwareTools_VersionStatus2){$VmwareTools_VersionStatus2 = "Null"}
+                    if(!$VmwareTools_GuestFamily){$VmwareTools_GuestFamily = "Null"}
 
                     #Add Listviewitems
-                    $Form_ImportCSV_ResultListview_Listviewitem = New-object System.Windows.Forms.ListViewItem($VMName)
-                    $Form_ImportCSV_ResultListview_Listviewitem.subitems.add($vcenter)
-                    $Form_ImportCSV_ResultListview_Listviewitem.subitems.add($PowerState)
-                    $Form_ImportCSV_ResultListview_Listviewitem.subitems.add($IPAddress)
-                    $Form_ImportCSV_ResultListview_Listviewitem.subitems.add($Operating_System)
-                    $Form_ImportCSV_ResultListview_Listviewitem.subitems.add($ToolsRunningStatus)
-                    $Form_ImportCSV_ResultListview_Listviewitem.subitems.add($VmwareTools_Version)
-                    $Form_ImportCSV_ResultListview_Listviewitem.subitems.add($VmwareTools_InstallType)
-                    $Form_ImportCSV_ResultListview_Listviewitem.subitems.add($VmwareTools_Status)
-                    $Form_ImportCSV_ResultListview_Listviewitem.subitems.add($VmwareTools_VersionStatus)
-                    $Form_ImportCSV_ResultListview_Listviewitem.subitems.add($VmwareTools_VersionStatus2)
+                    $Form_ImportCSV_GetVMResultListview_Listviewitem = New-object System.Windows.Forms.ListViewItem($VMName)
+                    $Form_ImportCSV_GetVMResultListview_Listviewitem.subitems.add($vcenter)
+                    $Form_ImportCSV_GetVMResultListview_Listviewitem.subitems.add($PowerState)
+                    $Form_ImportCSV_GetVMResultListview_Listviewitem.subitems.add($IPAddress)
+                    $Form_ImportCSV_GetVMResultListview_Listviewitem.subitems.add($Operating_System)
+                    $Form_ImportCSV_GetVMResultListview_Listviewitem.subitems.add($ToolsRunningStatus)
+                    $Form_ImportCSV_GetVMResultListview_Listviewitem.subitems.add($VmwareTools_Version)
+                    $Form_ImportCSV_GetVMResultListview_Listviewitem.subitems.add($VmwareTools_InstallType)
+                    $Form_ImportCSV_GetVMResultListview_Listviewitem.subitems.add($VmwareTools_Status)
+                    $Form_ImportCSV_GetVMResultListview_Listviewitem.subitems.add($VmwareTools_VersionStatus)
+                    $Form_ImportCSV_GetVMResultListview_Listviewitem.subitems.add($VmwareTools_VersionStatus2)
+                    $Form_ImportCSV_GetVMResultListview_Listviewitem.subitems.add($VmwareTools_GuestFamily)
 
-                    $Form_ImportCSV_ResultListview.items.add($Form_ImportCSV_ResultListview_Listviewitem) | out-null
+                    $Form_ImportCSV_GetVMResultListview.items.add($Form_ImportCSV_GetVMResultListview_Listviewitem) | out-null
                     
 
                 }
 
-                $Form_ImportCSV_ResultListview.AutoResizeColumns("HeaderSize")
+                $Form_ImportCSV_GetVMResultListview.AutoResizeColumns("HeaderSize")
 
                 $Form_CSVOption.controls.remove($Form_ImportCSV_Result) | out-null
-                $Form_CSVOption.controls.AddRange(@($Form_ImportCSV_ResultListview,$Form_ImportCSV_SnapshotButton)) | out-null
+                $Form_CSVOption.controls.AddRange(@($Form_ImportCSV_GetVMResultListview,$Form_ImportCSV_UpgradeTools)) | out-null
 
             }
 
@@ -224,9 +229,167 @@ function FormImportCSV-GetVMs(){
     }
 }
 
-function FormImportCSV-Snapshot(){
+function FormImportCSV-UpgradeTools(){
+    $Form_CSVOption.controls.remove($Form_ImportCSV_GetVMResultListview)
+    $Form_CSVOption.controls.Add($Form_ImportCSV_Label_UpgradeTracker)
+    $Form_CSVOption.controls.Add($Form_ImportCSV_UpgradeVMwareToolsResultListview)
 
+    #Build Columns for list view
+    $Form_ImportCSV_UpgradeVMwareToolsResultListview.columns.add("VMName") | out-null
+    $Form_ImportCSV_UpgradeVMwareToolsResultListview.columns.add("VCenter") | out-null
+    $Form_ImportCSV_UpgradeVMwareToolsResultListview.columns.add("PowerState") | out-null
+    $Form_ImportCSV_UpgradeVMwareToolsResultListview.columns.add("VmwareTools_GuestFamily") | out-null
+    $Form_ImportCSV_UpgradeVMwareToolsResultListview.columns.add("SnapshotResult") | out-null
+    $Form_ImportCSV_UpgradeVMwareToolsResultListview.columns.add("SnapshotMessage") | out-null
+    $Form_ImportCSV_UpgradeVMwareToolsResultListview.columns.add("VmwareToolsUpgradeResult") | out-null
+    $Form_ImportCSV_UpgradeVMwareToolsResultListview.columns.add("VmwareToolsUpgradeMessage") | out-null
+
+    $SelectedVMs = @($Form_ImportCSV_GetVMResultListview.SelectedIndices)
+
+    #Identify Indexes for properties
+    $VcenterIndex = ($Form_ImportCSV_GetVMResultListview.Columns | where {$_.text -eq "Vcenter"}).index
+    $VMnameIndex = ($Form_ImportCSV_GetVMResultListview.Columns | where {$_.text -eq "VMName"}).index
+    $PowerStateIndex = ($Form_ImportCSV_GetVMResultListview.Columns | where {$_.text -eq "PowerState"}).index
+    $IPAddressIndex = ($Form_ImportCSV_GetVMResultListview.Columns | where {$_.text -eq "IPAddress"}).index
+    $Operating_SystemIndex = ($Form_ImportCSV_GetVMResultListview.Columns | where {$_.text -eq "Operating_System"}).index
+    $ToolsRunningStatusIndex = ($Form_ImportCSV_GetVMResultListview.Columns | where {$_.text -eq "ToolsRunningStatus"}).index
+    $VmwareTools_VersionIndex = ($Form_ImportCSV_GetVMResultListview.Columns | where {$_.text -eq "VmwareTools_Version"}).index
+    $VmwareTools_InstallTypeIndex = ($Form_ImportCSV_GetVMResultListview.Columns | where {$_.text -eq "VmwareTools_InstallType"}).index
+    $VmwareTools_StatusIndex = ($Form_ImportCSV_GetVMResultListview.Columns | where {$_.text -eq "VmwareTools_Status"}).index
+    $VmwareTools_VersionStatusIndex = ($Form_ImportCSV_GetVMResultListview.Columns | where {$_.text -eq "VmwareTools_VersionStatus"}).index
+    $VmwareTools_VersionStatus2Index = ($Form_ImportCSV_GetVMResultListview.Columns | where {$_.text -eq "VmwareTools_VersionStatus2"}).index
+    $VmwareTools_GuestFamilyIndex = ($Form_ImportCSV_GetVMResultListview.Columns | where {$_.text -eq "VmwareTools_GuestFamily"}).index
+
+    #Counters
+    $a = 1
+    $b = $SelectedVMs.count
+
+    $SelectedVMs | foreach {
+        
+        #Clear Arrays for loop
+        $Vcenter = @()
+        $VMname = @()
+        $PowerState = @()
+        $IPAddress = @()
+        $Operating_System = @()
+        $ToolsRunningStatus = @()
+        $VmwareTools_Version = @()
+        $VmwareTools_InstallType = @()
+        $VmwareTools_Status = @()
+        $VmwareTools_VersionStatus = @()
+        $VmwareTools_VersionStatus2 = @()
+        $VmwareTools_GuestFamily = @()
+        $SnapshotResult = @()
+        $SnapshotMessage = @()
+        $VmwareToolsUpgradeResult = @()
+        $VmwareToolsUpgradeMessage = @()
+
+        #Set Property array for selected property in index
+        $VMName = ($Form_ImportCSV_GetVMResultListview.items[$_].subitems[$VMNameIndex]).text
+        $Vcenter = ($Form_ImportCSV_GetVMResultListview.items[$_].subitems[$VCenterIndex]).text
+        $PowerState = ($Form_ImportCSV_GetVMResultListview.items[$_].subitems[$PowerStateIndex]).text
+        $IPAddress = ($Form_ImportCSV_GetVMResultListview.items[$_].subitems[$IPAddressIndex]).text
+        $Operating_System = ($Form_ImportCSV_GetVMResultListview.items[$_].subitems[$Operating_SystemIndex]).text
+        $ToolsRunningStatus = ($Form_ImportCSV_GetVMResultListview.items[$_].subitems[$ToolsRunningStatusIndex]).text
+        $VmwareTools_Version = ($Form_ImportCSV_GetVMResultListview.items[$_].subitems[$VmwareTools_VersionIndex]).text
+        $VmwareTools_InstallType = ($Form_ImportCSV_GetVMResultListview.items[$_].subitems[$VmwareTools_InstallTypeIndex]).text
+        $VmwareTools_Status = ($Form_ImportCSV_GetVMResultListview.items[$_].subitems[$VmwareTools_StatusIndex]).text
+        $VmwareTools_VersionStatus = ($Form_ImportCSV_GetVMResultListview.items[$_].subitems[$VmwareTools_VersionStatusIndex]).text
+        $VmwareTools_VersionStatus2 = ($Form_ImportCSV_GetVMResultListview.items[$_].subitems[$VmwareTools_VersionStatus2Index]).text
+        $VmwareTools_GuestFamily = ($Form_ImportCSV_GetVMResultListview.items[$_].subitems[$VmwareTools_GuestFamilyIndex]).text
+
+        $Form_ImportCSV_Label_UpgradeTracker.text = "Working on item $a of $b selected items."
+        $Form_ImportCSV_Label_UpgradeTracker.text += "`r`nVM:$VMName on $vcenter."
+
+        #Powerstate Handling: Off = Skip
+        if($PowerState -ne "Poweredon"){
+            $SnapshotResult = "Skipped"
+            $SnapshotMessage = "VM is offline"
+            $VmwareToolsUpgradeResult = "Skipped"
+            $VmwareToolsUpgradeMessage = "VM is offline. Turn on VM and try again"
+
+        }
+
+        #Guest Family Handling: not windows = skip
+        if($PowerState -eq "Poweredon" -and $VmwareTools_GuestFamily -ne "windowsGuest"){
+            $SnapshotResult = "Skipped"
+            $SnapshotMessage = "Not a windows VM"
+            $VmwareToolsUpgradeResult = "Skipped"
+            $VmwareToolsUpgradeMessage = "Not a windows VM"
+
+        }
+
+        #Tools Status Handling: Tools not installed = Skip
+        if($PowerState -eq "Poweredon" -and $VmwareTools_Status -eq "toolsNotInstalled" -and $VmwareTools_GuestFamily -ne "windowsGuest"){
+            $SnapshotResult = "Skipped"
+            $SnapshotMessage = "Tools not installed. Manually install Tools"
+            $VmwareToolsUpgradeResult = "Skipped"
+            $VmwareToolsUpgradeMessage = "Tools not installed. Manually install Tools"
+        }
+
+        #Tools don't need upgrade = Skip
+        if($PowerState -eq "Poweredon" -and $VmwareTools_VersionStatus -ne "guestToolsNeedUpgrade" -and $VmwareTools_GuestFamily -ne "windowsGuest"){
+            $SnapshotResult = "Skipped"
+            $SnapshotMessage = "Tools don't need upgrade"
+            $VmwareToolsUpgradeResult = "Skipped"
+            $VmwareToolsUpgradeMessage = "Tools don't need upgrade"
+        }
+
+        #Tools need Upgrade
+        if($PowerState -eq "Poweredon" -and $VmwareTools_VersionStatus -eq "guestToolsNeedUpgrade" -and $VmwareTools_GuestFamily -eq "windowsGuest"){
+            $Form_ImportCSV_Label_UpgradeTracker.text = "Initiating Snapshot on $vmname"
+            
+            #Take Snapshot of VM
+            $task1 = get-vm "*$vmname*" -server $vcenter | new-snapshot -Name "Prior to Upgrading Vmware Tools" -Description "Snapshot taken prior to upgrading vmware tools." 
+            $task1 | Wait-Task
+            $task1 = Get-Task -Id $task1.Id
+            if ($task1.State -eq "Success") {
+                $SnapshotResult = "Completed"
+                $SnapshotMessage = "Snapshot Succeeded"
+                $Form_ImportCSV_Label_UpgradeTracker.text = "`r`nSnapshot Succeeded"
+
+                #Upgrade VMware Tools
+                $Form_ImportCSV_Label_UpgradeTracker.text = "Initiating VMware tools upgrade on $vmname"
+                $task2 = Update-Tools "*$vm*" -server $vcenter -NoReboot -RunAsync
+                $task2 | Wait-Task
+                $task2 = Get-Task -Id $task2.Id
+                if ($task2.State -eq "Success") {
+                    $VmwareToolsUpgradeResult = "Completed"
+                    $VmwareToolsUpgradeMessage = "Upgrade VMTools successfully"
+                    $Form_ImportCSV_Label_UpgradeTracker.text = "`r`nVMware Tools Upgrade Succeeded"
+                } else {
+                    $VmwareToolsUpgradeResult = "Failed"
+                    $VmwareToolsUpgradeMessage = $task.ExtensionData.Info.Error.LocalizedMessage
+                    $Form_ImportCSV_Label_UpgradeTracker.text = "`r`nVMware Tools Upgrade Failed"
+                }
+
+            } else {
+                $SnapshotResult = "Failed"
+                $SnapshotMessage = $task1.ExtensionData.Info.Error.LocalizedMessage
+                $VmwareToolsUpgradeResult = "Aborted"
+                $VmwareToolsUpgradeMessage = "Snapshot Failed. Aborted VMware tools upgrade"
+                $Form_ImportCSV_Label_UpgradeTracker.text = "Failed to take snapshot for VM: $vmname"
+                $Form_ImportCSV_Label_UpgradeTracker.text = "`r`nAborting VMware Tools Upgrade"
+            }
+        }
+
+        #Add Listviewitems
+        $Form_ImportCSV_UpgradeVMwareToolsResultListview_Listviewitem = New-object System.Windows.Forms.ListViewItem($VMName)
+        $Form_ImportCSV_UpgradeVMwareToolsResultListview_Listviewitem.subitems.add($vcenter)
+        $Form_ImportCSV_UpgradeVMwareToolsResultListview_Listviewitem.subitems.add($PowerState)
+        $Form_ImportCSV_UpgradeVMwareToolsResultListview_Listviewitem.subitems.add($VmwareTools_GuestFamily)
+        $Form_ImportCSV_UpgradeVMwareToolsResultListview_Listviewitem.subitems.add($SnapshotResult)
+        $Form_ImportCSV_UpgradeVMwareToolsResultListview_Listviewitem.subitems.add($SnapshotMessage)
+        $Form_ImportCSV_UpgradeVMwareToolsResultListview_Listviewitem.subitems.add($VmwareToolsUpgradeResult)
+        $Form_ImportCSV_UpgradeVMwareToolsResultListview_Listviewitem.subitems.add($VmwareToolsUpgradeMessage)
+
+        $Form_ImportCSV_UpgradeVMwareToolsResultListview.items.add($Form_ImportCSV_UpgradeVMwareToolsResultListview_Listviewitem) | out-null
+
+        $a++
     }
+    
+
+}
 
 function FormImportCSV-ExportResults(){
     $Today = ((Get-Date).ToString('MMddyyyy'))
@@ -336,6 +499,15 @@ $Form_ImportCSV_Label_UsernameandPasswordError.location     = New-Object System.
 $Form_ImportCSV_Label_UsernameandPasswordError.Font         = New-Object System.Drawing.Font('Microsoft Sans Serif',10)
 $Form_ImportCSV_Label_UsernameandPasswordError.ForeColor    = "Red" 
 
+$Form_ImportCSV_Label_UpgradeTracker              = New-Object system.Windows.Forms.Label
+$Form_ImportCSV_Label_UpgradeTracker.text         = ""
+$Form_ImportCSV_Label_UpgradeTracker.width        = 280
+$Form_ImportCSV_Label_UpgradeTracker.height       = 30
+$Form_ImportCSV_Label_UpgradeTracker.TextAlign    = "MiddleLeft"
+$Form_ImportCSV_Label_UpgradeTracker.location     = New-Object System.Drawing.Point(320,300)
+$Form_ImportCSV_Label_UpgradeTracker.Font         = New-Object System.Drawing.Font('Microsoft Sans Serif',10)
+$Form_ImportCSV_Label_UpgradeTracker.ForeColor    = "Blue" 
+
 #Result Box
 $Form_ImportCSV_Result                          = New-Object system.Windows.Forms.TextBox
 $Form_ImportCSV_Result.width                    = 720
@@ -344,17 +516,29 @@ $Form_ImportCSV_Result.location                 = New-Object System.Drawing.Poin
 $Form_ImportCSV_Result.Font                     = New-Object System.Drawing.Font('Microsoft Sans Serif',10)
 $Form_ImportCSV_Result.multiline                = $True
 
-$Form_ImportCSV_ResultListview                          = New-Object system.Windows.Forms.listview
-$Form_ImportCSV_ResultListview.width                    = 720
-$Form_ImportCSV_ResultListview.height                   = 150
-$Form_ImportCSV_ResultListview.location                 = New-Object System.Drawing.Point(30,140)
-$Form_ImportCSV_ResultListview.Font                     = New-Object System.Drawing.Font('Microsoft Sans Serif',10)
-$Form_ImportCSV_ResultListview.view                     = "Details"
-$Form_ImportCSV_ResultListview.FullRowSelect            = $True
-$Form_ImportCSV_ResultListview.MultiSelect              = $True
-$Form_ImportCSV_ResultListview.AllowColumnReorder       = $True
-$Form_ImportCSV_ResultListview.GridLines                = $True 
-$Form_ImportCSV_ResultListview.Sorting                  = "ascending"
+$Form_ImportCSV_GetVMResultListview                          = New-Object system.Windows.Forms.listview
+$Form_ImportCSV_GetVMResultListview.width                    = 720
+$Form_ImportCSV_GetVMResultListview.height                   = 150
+$Form_ImportCSV_GetVMResultListview.location                 = New-Object System.Drawing.Point(30,140)
+$Form_ImportCSV_GetVMResultListview.Font                     = New-Object System.Drawing.Font('Microsoft Sans Serif',10)
+$Form_ImportCSV_GetVMResultListview.view                     = "Details"
+$Form_ImportCSV_GetVMResultListview.FullRowSelect            = $True
+$Form_ImportCSV_GetVMResultListview.MultiSelect              = $True
+$Form_ImportCSV_GetVMResultListview.AllowColumnReorder       = $True
+$Form_ImportCSV_GetVMResultListview.GridLines                = $True 
+$Form_ImportCSV_GetVMResultListview.Sorting                  = "ascending"
+
+$Form_ImportCSV_UpgradeVMwareToolsResultListview                          = New-Object system.Windows.Forms.listview
+$Form_ImportCSV_UpgradeVMwareToolsResultListview.width                    = 720
+$Form_ImportCSV_UpgradeVMwareToolsResultListview.height                   = 150
+$Form_ImportCSV_UpgradeVMwareToolsResultListview.location                 = New-Object System.Drawing.Point(30,140)
+$Form_ImportCSV_UpgradeVMwareToolsResultListview.Font                     = New-Object System.Drawing.Font('Microsoft Sans Serif',10)
+$Form_ImportCSV_UpgradeVMwareToolsResultListview.view                     = "Details"
+$Form_ImportCSV_UpgradeVMwareToolsResultListview.FullRowSelect            = $True
+$Form_ImportCSV_UpgradeVMwareToolsResultListview.MultiSelect              = $True
+$Form_ImportCSV_UpgradeVMwareToolsResultListview.AllowColumnReorder       = $True
+$Form_ImportCSV_UpgradeVMwareToolsResultListview.GridLines                = $True 
+$Form_ImportCSV_UpgradeVMwareToolsResultListview.Sorting                  = "ascending"
 
 #Text Box
 $Form_ImportCSV_TextBox_Browse              = New-Object system.Windows.Forms.TextBox
@@ -411,13 +595,13 @@ $Form_ImportCSV_GetVMsButton.location        = New-Object System.Drawing.Point(3
 $Form_ImportCSV_GetVMsButton.Font            = New-Object System.Drawing.Font('Microsoft Sans Serif',10)
 $Form_ImportCSV_GetVMsButton.Add_Click({FormImportCSV-GetVMs})
 
-$Form_ImportCSV_SnapshotButton                 = New-Object system.Windows.Forms.Button
-$Form_ImportCSV_SnapshotButton.text            = "Upgrade VMware Tools"
-$Form_ImportCSV_SnapshotButton.width           = 120
-$Form_ImportCSV_SnapshotButton.height          = 40
-$Form_ImportCSV_SnapshotButton.location        = New-Object System.Drawing.Point(630,300)
-$Form_ImportCSV_SnapshotButton.Font            = New-Object System.Drawing.Font('Microsoft Sans Serif',10)
-$Form_ImportCSV_SnapshotButton.Add_Click({FormImportCSV-Snapshot})
+$Form_ImportCSV_UpgradeTools                 = New-Object system.Windows.Forms.Button
+$Form_ImportCSV_UpgradeTools.text            = "Upgrade VMware Tools"
+$Form_ImportCSV_UpgradeTools.width           = 120
+$Form_ImportCSV_UpgradeTools.height          = 40
+$Form_ImportCSV_UpgradeTools.location        = New-Object System.Drawing.Point(630,300)
+$Form_ImportCSV_UpgradeTools.Font            = New-Object System.Drawing.Font('Microsoft Sans Serif',10)
+$Form_ImportCSV_UpgradeTools.Add_Click({FormImportCSV-UpgradeTools})
 
 $Form_ImportCSV_ExportResultsButton                 = New-Object system.Windows.Forms.Button
 $Form_ImportCSV_ExportResultsButton.text            = "Export Results"
@@ -465,5 +649,7 @@ foreach ($vm in $vms){
     Update-Tools "*$vm*"  -NoReboot -RunAsync
 }
 #>
+
+Disconnect-VIServer -Server $global:DefaultVIServers -confirm:$False -Force
 
 Stop-Transcript | out-null
