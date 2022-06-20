@@ -6,23 +6,47 @@ Stop-Transcript | out-null
 $logspath = $PSScriptRoot + "\" + ("{0:yyyyMMdd}_UpgradeVmwareToolslog.log" -f (get-date))  
 Start-Transcript -path $logspath -append
 
+#FeatureToggles
+$global:Feature_ManuallyChoose = $true
+
 #Region Functions
 #Import CSV Option Page
-function FormCSVOption-closeForm(){
+function FormGlobal-closeForm(){
     $Form_CSVOption.close()
   }
 
 function FormCSVOption-ManuallyChoose(){
-    $Form_CSVOption_ManuallyChooseButton.text = "In Development"
+
+    if($Feature_ManuallyChoose -eq $False){
+        $Form_CSVOption.controls.clear()
+    }
+    
+    if($Feature_ManuallyChoose -eq $True){
+        $Form_CSVOption.controls.AddRange(@(
+            $Form_Global_closeButton,
+            #$Form_ImportCSV_Label_Instructions,
+            $Form_Global_Result,
+            #$Form_ImportCSV_DownloadSampleButton,
+            #$Form_ImportCSV_BrowseButton,
+            #$Form_ImportCSV_TextBox_Browse,
+            $Form_ImportCSV_Label_Username,
+            $Form_ImportCSV_TextBox_UserName,
+            $Form_ImportCSV_Label_Password,
+            $Form_ImportCSV_TextBox_Password,
+            $Form_ImportCSV_GetVMsButton))
+    }
+
+    $global:PageSelector = "ManuallyChoose"
+    
 }
 
 function FormCSVOption-ImportCSV(){
     $Form_CSVOption.controls.clear()
 
     $Form_CSVOption.controls.AddRange(@(
-        $Form_ImportCSV_closeButton,
+        $Form_Global_closeButton,
         $Form_ImportCSV_Label_Instructions,
-        $Form_ImportCSV_Result,
+        $Form_Global_Result,
         $Form_ImportCSV_DownloadSampleButton,
         $Form_ImportCSV_BrowseButton,
         $Form_ImportCSV_TextBox_Browse,
@@ -31,6 +55,8 @@ function FormCSVOption-ImportCSV(){
         $Form_ImportCSV_Label_Password,
         $Form_ImportCSV_TextBox_Password,
         $Form_ImportCSV_GetVMsButton))
+
+    $global:PageSelector = "ImportCSV"
 
 }
 
@@ -78,8 +104,8 @@ function FormImportCSV-GetVMs(){
     $Form_ImportCSV_GetVMResultListview.clear()
     
     #Add Result box
-    $Form_ImportCSV_Result.text = ""
-    $Form_CSVOption.controls.add($Form_ImportCSV_Result) | out-null
+    $Form_Global_Result.text = ""
+    $Form_CSVOption.controls.add($Form_Global_Result) | out-null
 
     #If there is something in the browse text box do stuff
     if($Form_ImportCSV_TextBox_Browse.text -ne ""){
@@ -87,13 +113,13 @@ function FormImportCSV-GetVMs(){
         if($Form_ImportCSV_TextBox_UserName.text -ne "" -and $Form_ImportCSV_TextBox_Password.text -ne ""){
             
             #Import selected CSV File
-            $Form_ImportCSV_Result.text = "Importing CSV file: $($Form_ImportCSV_TextBox_Browse.text)"
+            $Form_Global_Result.text = "Importing CSV file: $($Form_ImportCSV_TextBox_Browse.text)"
             try{
                 $CSVContent = import-csv $Form_ImportCSV_TextBox_Browse.text -erroraction stop
-                $Form_ImportCSV_Result.text += "`r`nImported $($csvcontent.count) items"
+                $Form_Global_Result.text += "`r`nImported $($csvcontent.count) items"
             }
             catch{
-                $Form_ImportCSV_Result.text += "`r`nFailed to import CSV."
+                $Form_Global_Result.text += "`r`nFailed to import CSV."
             }
             
             
@@ -102,7 +128,7 @@ function FormImportCSV-GetVMs(){
     
             #Set VCenters Array
             $VCenters = $csvcontent | select -Unique -ExpandProperty Vcenter 
-            $Form_ImportCSV_Result.text += "`r`nIdentified $($Vcenters.count) VCenters"
+            $Form_Global_Result.text += "`r`nIdentified $($Vcenters.count) VCenters"
             
             #Username Pulled from text box
             $username = $Form_ImportCSV_TextBox_UserName.text
@@ -112,23 +138,23 @@ function FormImportCSV-GetVMs(){
     
             ## -- connect to vcenter -- ##
             foreach($Vcenter in $VCenters){
-                $Form_ImportCSV_Result.text += "`r`nConnecting to $vcenter"
+                $Form_Global_Result.text += "`r`nConnecting to $vcenter"
                 try{
                     connect-viserver -server $vcenter -username $username -password $password -force -erroraction stop
                 }Catch{
-                    $Form_ImportCSV_Result.text += "`r`n     Could not connect to $Vcenter."
-                    $Form_ImportCSV_Result.text += "`r`n     Please check Vcenter Name is correct and the username and password used to login are correct."
+                    $Form_Global_Result.text += "`r`n     Could not connect to $Vcenter."
+                    $Form_Global_Result.text += "`r`n     Please check Vcenter Name is correct and the username and password used to login are correct."
                 }
             }
 
             #If clause checks to see if a vcenter was able to be connected to using the global default vi server cmdlet
             if($global:defaultviserver){
-                $Form_ImportCSV_Result.text += "`r`n"
-                $Form_ImportCSV_Result.text += "`r`nGetting VMs from imported list..."
+                $Form_Global_Result.text += "`r`n"
+                $Form_Global_Result.text += "`r`nGetting VMs from imported list..."
                 #Get vms filtered on imported CSV. This is technically more efficient than pulling each vm individually... maybe...idk. 
                 $vms = get-vm | where {$_.name -in $importvmsearch}
 
-                $Form_ImportCSV_Result.text += "`r`nFound $($vms.count) of $($importvmsearch.count)"
+                $Form_Global_Result.text += "`r`nFound $($vms.count) of $($importvmsearch.count)"
 
 
                 #Build Columns for list view
@@ -209,15 +235,15 @@ function FormImportCSV-GetVMs(){
 
                 $Form_ImportCSV_GetVMResultListview.AutoResizeColumns("HeaderSize")
 
-                $Form_CSVOption.controls.remove($Form_ImportCSV_Result) | out-null
+                $Form_CSVOption.controls.remove($Form_Global_Result) | out-null
                 $Form_CSVOption.controls.AddRange(@($Form_ImportCSV_GetVMResultListview,$Form_ImportCSV_UpgradeTools)) | out-null
 
             }
 
             #If clause checks to see if no vcenter was connected to. A bit of error handling...Kinda.
             if(!$global:defaultviserver){
-                $Form_ImportCSV_Result.text += "`r`n "
-                $Form_ImportCSV_Result.text += "`r`nDid not connect to any vcenter. Please try again. Double check the username and password used is correct. Make sure you are able to connect to the vcenter from your network."
+                $Form_Global_Result.text += "`r`n "
+                $Form_Global_Result.text += "`r`nDid not connect to any vcenter. Please try again. Double check the username and password used is correct. Make sure you are able to connect to the vcenter from your network."
             }
             #>
         }
@@ -416,7 +442,7 @@ function FormImportCSV-UpgradeTools(){
 
 }
 
-function FormImportCSV-ExportResults(){
+function FormCSV-ExportResults(){
     $Today = ((Get-Date).ToString('MMddyyyy'))
     $exportpath = $PSScriptRoot + "\$Today" + "_VmwareToolsUpgrade.csv"
     if($data){
@@ -428,6 +454,10 @@ function FormImportCSV-ExportResults(){
     }
         
 }
+
+#Manually Choose Page
+
+
 
 #endRegion Functions
 
@@ -446,6 +476,15 @@ $Form_CSVOption.MaximizeBox                    = $false
 $Form_CSVOption.MinimizeBox                    = $True
 $Form_CSVOption.ControlBox                     = $True
 
+#Global Items
+#Label
+
+#Result Box
+
+#Text Box
+
+#Buttons
+
 #Import CSV Option Page
 #Label
 $Form_CSVOption_Label_Notice            = New-Object system.Windows.Forms.Label
@@ -462,7 +501,7 @@ $Form_CSVOption_CloseButton.width               = 100
 $Form_CSVOption_CloseButton.height              = 40
 $Form_CSVOption_CloseButton.location            = New-Object System.Drawing.Point(30,300)
 $Form_CSVOption_CloseButton.Font                = New-Object System.Drawing.Font('Microsoft Sans Serif',10)
-$Form_CSVOption_CloseButton.Add_Click({FormCSVOption-closeForm})
+$Form_CSVOption_CloseButton.Add_Click({FormGlobal-closeForm})
 
 $Form_CSVOption_ImportCSVButton                 = New-Object system.Windows.Forms.Button
 $Form_CSVOption_ImportCSVButton.text            = "Import from CSV"
@@ -533,12 +572,12 @@ $Form_ImportCSV_Label_UpgradeTracker.Font         = New-Object System.Drawing.Fo
 $Form_ImportCSV_Label_UpgradeTracker.ForeColor    = "Blue" 
 
 #Result Box
-$Form_ImportCSV_Result                          = New-Object system.Windows.Forms.TextBox
-$Form_ImportCSV_Result.width                    = 720
-$Form_ImportCSV_Result.height                   = 150
-$Form_ImportCSV_Result.location                 = New-Object System.Drawing.Point(30,140)
-$Form_ImportCSV_Result.Font                     = New-Object System.Drawing.Font('Microsoft Sans Serif',10)
-$Form_ImportCSV_Result.multiline                = $True
+$Form_Global_Result                          = New-Object system.Windows.Forms.TextBox
+$Form_Global_Result.width                    = 720
+$Form_Global_Result.height                   = 150
+$Form_Global_Result.location                 = New-Object System.Drawing.Point(30,140)
+$Form_Global_Result.Font                     = New-Object System.Drawing.Font('Microsoft Sans Serif',10)
+$Form_Global_Result.multiline                = $True
 
 $Form_ImportCSV_GetVMResultListview                          = New-Object system.Windows.Forms.listview
 $Form_ImportCSV_GetVMResultListview.width                    = 720
@@ -587,13 +626,13 @@ $Form_ImportCSV_TextBox_Password.location     = New-Object System.Drawing.Point(
 $Form_ImportCSV_TextBox_Password.Font         = New-Object System.Drawing.Font('Microsoft Sans Serif',10)
 
 #Buttons
-$Form_ImportCSV_closeButton                     = New-Object system.Windows.Forms.Button
-$Form_ImportCSV_closeButton.text                = "Close"
-$Form_ImportCSV_closeButton.width               = 100
-$Form_ImportCSV_closeButton.height              = 40
-$Form_ImportCSV_closeButton.location            = New-Object System.Drawing.Point(30,300)
-$Form_ImportCSV_closeButton.Font                = New-Object System.Drawing.Font('Microsoft Sans Serif',10)
-$Form_ImportCSV_closeButton.Add_Click({FormCSVOption-closeForm})
+$Form_Global_closeButton                     = New-Object system.Windows.Forms.Button
+$Form_Global_closeButton.text                = "Close"
+$Form_Global_closeButton.width               = 100
+$Form_Global_closeButton.height              = 40
+$Form_Global_closeButton.location            = New-Object System.Drawing.Point(30,300)
+$Form_Global_closeButton.Font                = New-Object System.Drawing.Font('Microsoft Sans Serif',10)
+$Form_Global_closeButton.Add_Click({FormGlobal-closeForm})
 
 $Form_ImportCSV_DownloadSampleButton                 = New-Object system.Windows.Forms.Button
 $Form_ImportCSV_DownloadSampleButton.text            = "Download Sample CSV"
@@ -633,12 +672,73 @@ $Form_ImportCSV_ExportResultsButton.width           = 100
 $Form_ImportCSV_ExportResultsButton.height          = 40
 $Form_ImportCSV_ExportResultsButton.location        = New-Object System.Drawing.Point(650,300)
 $Form_ImportCSV_ExportResultsButton.Font            = New-Object System.Drawing.Font('Microsoft Sans Serif',10)
-$Form_ImportCSV_ExportResultsButton.Add_Click({FormImportCSV-ExportResults})
+$Form_ImportCSV_ExportResultsButton.Add_Click({FormCSV-ExportResults})
+
+#Manually Choose Page
+#Label
+$Form_ManuallyChoose_Label_Instructions              = New-Object system.Windows.Forms.Label
+$Form_ManuallyChoose_Label_Instructions.text         = "Please Provide Vcenter Server, Username, and Password."
+$Form_ManuallyChoose_Label_Instructions.width        = 300
+$Form_ManuallyChoose_Label_Instructions.height       = 15
+$Form_ManuallyChoose_Label_Instructions.TextAlign    = "MiddleLeft"
+$Form_ManuallyChoose_Label_Instructions.location     = New-Object System.Drawing.Point(30,20)
+$Form_ManuallyChoose_Label_Instructions.Font         = New-Object System.Drawing.Font('Microsoft Sans Serif',10)
+
+$Form_ManuallyChoose_Label_Username              = New-Object system.Windows.Forms.Label
+$Form_ManuallyChoose_Label_Username.text         = "Username:"
+$Form_ManuallyChoose_Label_Username.width        = 75
+$Form_ManuallyChoose_Label_Username.height       = 30
+$Form_ManuallyChoose_Label_Username.TextAlign    = "MiddleLeft"
+$Form_ManuallyChoose_Label_Username.location     = New-Object System.Drawing.Point(160,100)
+$Form_ManuallyChoose_Label_Username.Font         = New-Object System.Drawing.Font('Microsoft Sans Serif',10)
+
+$Form_ManuallyChoose_Label_Password              = New-Object system.Windows.Forms.Label
+$Form_ManuallyChoose_Label_Password.text         = "Password:"
+$Form_ManuallyChoose_Label_Password.width        = 70
+$Form_ManuallyChoose_Label_Password.height       = 30
+$Form_ManuallyChoose_Label_Password.TextAlign    = "MiddleLeft"
+$Form_ManuallyChoose_Label_Password.location     = New-Object System.Drawing.Point(370,100)
+$Form_ManuallyChoose_Label_Password.Font         = New-Object System.Drawing.Font('Microsoft Sans Serif',10)
+
+$Form_ManuallyChoose_Label_UsernameandPasswordError              = New-Object system.Windows.Forms.Label
+$Form_ManuallyChoose_Label_UsernameandPasswordError.text         = "Error! Please provide VCenter Server, username, and password!"
+$Form_ManuallyChoose_Label_UsernameandPasswordError.width        = 400
+$Form_ManuallyChoose_Label_UsernameandPasswordError.height       = 30
+$Form_ManuallyChoose_Label_UsernameandPasswordError.TextAlign    = "MiddleLeft"
+$Form_ManuallyChoose_Label_UsernameandPasswordError.location     = New-Object System.Drawing.Point(160,70)
+$Form_ManuallyChoose_Label_UsernameandPasswordError.Font         = New-Object System.Drawing.Font('Microsoft Sans Serif',10)
+$Form_ManuallyChoose_Label_UsernameandPasswordError.ForeColor    = "Red" 
+
+#Result Box
+
+#Text Box
+$Form_ManuallyChoose_TextBox_UserName              = New-Object system.Windows.Forms.TextBox
+$Form_ManuallyChoose_TextBox_UserName.text         = ""
+$Form_ManuallyChoose_TextBox_UserName.width        = 120
+$Form_ManuallyChoose_TextBox_UserName.height       = 30
+$Form_ManuallyChoose_TextBox_UserName.location     = New-Object System.Drawing.Point(235,100)
+$Form_ManuallyChoose_TextBox_UserName.Font         = New-Object System.Drawing.Font('Microsoft Sans Serif',10)
+
+$Form_ManuallyChoose_TextBox_Password              = New-Object system.Windows.Forms.TextBox
+$Form_ManuallyChoose_TextBox_Password.text         = ""
+$Form_ManuallyChoose_TextBox_Password.width        = 120
+$Form_ManuallyChoose_TextBox_Password.height       = 30
+$Form_ManuallyChoose_TextBox_Password.location     = New-Object System.Drawing.Point(440,100)
+$Form_ManuallyChoose_TextBox_Password.Font         = New-Object System.Drawing.Font('Microsoft Sans Serif',10)
+
+#Buttons
+$Form_ManuallyChoose_GetVMsButton                 = New-Object system.Windows.Forms.Button
+$Form_ManuallyChoose_GetVMsButton.text            = "Get-VMs"
+$Form_ManuallyChoose_GetVMsButton.width           = 120
+$Form_ManuallyChoose_GetVMsButton.height          = 40
+$Form_ManuallyChoose_GetVMsButton.location        = New-Object System.Drawing.Point(30,90)
+$Form_ManuallyChoose_GetVMsButton.Font            = New-Object System.Drawing.Font('Microsoft Sans Serif',10)
+$Form_ManuallyChoose_GetVMsButton.Add_Click({FormManuallyChoose-GetVMs})
 
 #Add items to form
 $Form_CSVOption.controls.AddRange(@(
     $Form_CSVOption_Label_Notice,
-    $Form_CSVOption_CloseButton,
+    $Form_Global_closeButton,
     $Form_CSVOption_ImportCSVButton,
     $Form_CSVOption_ManuallyChooseButton))
 
@@ -646,6 +746,6 @@ $Form_CSVOption.controls.AddRange(@(
 
 #End Region Import CSV Option 
 
-Disconnect-VIServer -Server $global:DefaultVIServers -confirm:$False -Force
+Disconnect-VIServer -Server $global:DefaultVIServers -confirm:$False -Force |out-null
 
 Stop-Transcript | out-null
