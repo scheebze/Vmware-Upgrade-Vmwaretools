@@ -264,6 +264,8 @@ function FormImportCSV-UpgradeTools(){
     $a = 1
     $b = $SelectedVMs.count
 
+    $global:data = @()
+
     $SelectedVMs | foreach {
         
         #Clear Arrays for loop
@@ -301,13 +303,21 @@ function FormImportCSV-UpgradeTools(){
         $Form_ImportCSV_Label_UpgradeTracker.text = "Working on item $a of $b selected items."
         $Form_ImportCSV_Label_UpgradeTracker.text += "`r`nVM:$VMName on $vcenter."
 
-        #Powerstate Handling: Off = Skip
-        if($PowerState -ne "Poweredon"){
-            $SnapshotResult = "Skipped"
-            $SnapshotMessage = "VM is offline"
-            $VmwareToolsUpgradeResult = "Skipped"
-            $VmwareToolsUpgradeMessage = "VM is offline. Turn on VM and try again"
 
+        #Tools don't need upgrade = Skip
+        if($PowerState -eq "Poweredon" -and $VmwareTools_VersionStatus -ne "guestToolsNeedUpgrade" -and $VmwareTools_GuestFamily -ne "windowsGuest"){
+            $SnapshotResult = "Skipped"
+            $SnapshotMessage = "Tools don't need upgrade"
+            $VmwareToolsUpgradeResult = "Skipped"
+            $VmwareToolsUpgradeMessage = "Tools don't need upgrade"
+        }
+
+        #Tools Status Handling: Tools not installed = Skip
+        if($PowerState -eq "Poweredon" -and $VmwareTools_Status -eq "toolsNotInstalled" -and $VmwareTools_GuestFamily -ne "windowsGuest"){
+            $SnapshotResult = "Skipped"
+            $SnapshotMessage = "Tools not installed. Manually install Tools"
+            $VmwareToolsUpgradeResult = "Skipped"
+            $VmwareToolsUpgradeMessage = "Tools not installed. Manually install Tools"
         }
 
         #Guest Family Handling: not windows = skip
@@ -319,20 +329,13 @@ function FormImportCSV-UpgradeTools(){
 
         }
 
-        #Tools Status Handling: Tools not installed = Skip
-        if($PowerState -eq "Poweredon" -and $VmwareTools_Status -eq "toolsNotInstalled" -and $VmwareTools_GuestFamily -ne "windowsGuest"){
+        #Powerstate Handling: Off = Skip
+        if($PowerState -ne "Poweredon"){
             $SnapshotResult = "Skipped"
-            $SnapshotMessage = "Tools not installed. Manually install Tools"
+            $SnapshotMessage = "VM is offline"
             $VmwareToolsUpgradeResult = "Skipped"
-            $VmwareToolsUpgradeMessage = "Tools not installed. Manually install Tools"
-        }
+            $VmwareToolsUpgradeMessage = "VM is offline. Turn on VM and try again"
 
-        #Tools don't need upgrade = Skip
-        if($PowerState -eq "Poweredon" -and $VmwareTools_VersionStatus -ne "guestToolsNeedUpgrade" -and $VmwareTools_GuestFamily -ne "windowsGuest"){
-            $SnapshotResult = "Skipped"
-            $SnapshotMessage = "Tools don't need upgrade"
-            $VmwareToolsUpgradeResult = "Skipped"
-            $VmwareToolsUpgradeMessage = "Tools don't need upgrade"
         }
 
         #Tools need Upgrade
@@ -350,7 +353,7 @@ function FormImportCSV-UpgradeTools(){
 
                 #Upgrade VMware Tools
                 $Form_ImportCSV_Label_UpgradeTracker.text = "Initiating VMware tools upgrade on $vmname"
-                $task2 = Update-Tools "*$vm*" -server $vcenter -NoReboot -RunAsync
+                $task2 = Update-Tools "*$vmname*" -server $vcenter -NoReboot -RunAsync
                 $task2 | Wait-Task
                 $task2 = Get-Task -Id $task2.Id
                 if ($task2.State -eq "Success") {
@@ -373,6 +376,12 @@ function FormImportCSV-UpgradeTools(){
             }
         }
 
+        if(!$SnapshotResult){$SnapshotResult = "Failed"}
+        if(!$SnapshotMessage){$SnapshotMessage = "Value Ended Null"}
+        if(!$VmwareToolsUpgradeResult){$VmwareToolsUpgradeResult = "Failed"}
+        if(!$VmwareToolsUpgradeMessage){$VmwareToolsUpgradeMessage = "Value Ended Null"}
+
+
         #Add Listviewitems
         $Form_ImportCSV_UpgradeVMwareToolsResultListview_Listviewitem = New-object System.Windows.Forms.ListViewItem($VMName)
         $Form_ImportCSV_UpgradeVMwareToolsResultListview_Listviewitem.subitems.add($vcenter)
@@ -385,24 +394,39 @@ function FormImportCSV-UpgradeTools(){
 
         $Form_ImportCSV_UpgradeVMwareToolsResultListview.items.add($Form_ImportCSV_UpgradeVMwareToolsResultListview_Listviewitem) | out-null
 
+        #Build Export Report
+        $row = New-Object PSObject
+        $row | Add-Member -MemberType NoteProperty -Name "VMName" -Value $VMName
+        $row | Add-Member -MemberType NoteProperty -Name "VCenter" -Value $vcenter
+        $row | Add-Member -MemberType NoteProperty -Name "PowerState" -Value $PowerState
+        $row | Add-Member -MemberType NoteProperty -Name "VmwareTools_GuestFamily" -Value $VmwareTools_GuestFamily
+        $row | Add-Member -MemberType NoteProperty -Name "SnapshotResult" -Value $SnapshotResult
+        $row | Add-Member -MemberType NoteProperty -Name "SnapshotMessage" -Value $SnapshotMessage
+        $row | Add-Member -MemberType NoteProperty -Name "VmwareToolsUpgradeResult" -Value $VmwareToolsUpgradeResult
+        $row | Add-Member -MemberType NoteProperty -Name "VmwareToolsUpgradeMessage" -Value $VmwareToolsUpgradeMessage
+        $global:data += $row
+
+
         $a++
     }
-    
+    $Form_ImportCSV_Label_UpgradeTracker.text = "Completed Tasks for $b VMs."
+
+    $Form_CSVOption.controls.remove($Form_ImportCSV_UpgradeTools)
+    $Form_CSVOption.controls.Add($Form_ImportCSV_ExportResultsButton)
 
 }
 
 function FormImportCSV-ExportResults(){
     $Today = ((Get-Date).ToString('MMddyyyy'))
-    $exportpath = $PSScriptRoot + "\$Today" + "_VmwareToolsUpgrade.log"
-    if($Form_ImportCSV_Result.text -ne "*" -or $Form_ImportCSV_Result.text -eq "No data to export."){
-        $Form_ImportCSV_Result.text = "No data to export."
+    $exportpath = $PSScriptRoot + "\$Today" + "_VmwareToolsUpgrade.csv"
+    if($data){
+        $data | export-csv -NoTypeInformation $exportpath
+        $Form_ImportCSV_Label_UpgradeTracker.text = "Exported to $Exportpath"
+    }else{
+        $Form_ImportCSV_Label_UpgradeTracker.ForeColor    = "Red" 
+        $Form_ImportCSV_Label_UpgradeTracker.text = "No Data to export."
     }
-    if($Form_ImportCSV_Result.text -like "*" -and $Form_ImportCSV_Result.text -ne "No data to export."){
-        $Form_ImportCSV_Result.text | Out-File $exportpath -Append
-    }
-
-    # Check to see if the column headers on the CSV is the correct format
-    
+        
 }
 
 #endRegion Functions
@@ -621,34 +645,6 @@ $Form_CSVOption.controls.AddRange(@(
 [void]$Form_CSVOption.ShowDialog()
 
 #End Region Import CSV Option 
-
-
-<#
-## -- Declare Vcenter Servers
-$vcenters = @("vcenter1.domain.local","vcenter2.domain.local")
-
-## -- Get server list of VMs -- ##
-$vms = get-content C:\temp\vms.txt
-
-## -- connect to vcenter -- ##
-foreach($Vcenter in $Vcenters){
-    Write-host "Connecting to $Vcenter" -ForegroundColor Yellow
-    connect-viserver -server $vcenter -credential $creds -force
-}
-
-#Run Through Each VM and take snapshot and upgrade VM
-foreach ($vm in $vms){
-    write-host "Working on $vm" -ForegroundColor Yellow
-
-    #Take Snapshot 
-    Write-host "Taking Snapshot"
-    get-vm "*$vm*" | new-snapshot -Name "Prior to Upgrading Vmware Tools" -Description "Snapshot taken prior to upgrading vmware tools $today." 
-
-    #Update Vmware Tools
-    Write-host "Updating Vmware Tools"
-    Update-Tools "*$vm*"  -NoReboot -RunAsync
-}
-#>
 
 Disconnect-VIServer -Server $global:DefaultVIServers -confirm:$False -Force
 
